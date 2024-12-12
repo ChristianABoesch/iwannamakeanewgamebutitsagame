@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Development Journey</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #player {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background-color: #e74c3c;
+            border-radius: 50%;
+            transition: all 0.2s;
+            z-index: 2;
+        }
+        .location-point {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            background-color: #3498db;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .location-point:hover {
+            transform: scale(1.1);
+            background-color: #2980b9;
+        }
+        #info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: center;
+            z-index: 3;
+        }
+        #restart-button {
+            display: none;
+            padding: 10px 20px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #restart-button:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player"></div>
+    </div>
+    <div id="info-panel">
+        <h2>Game Development Journey</h2>
+        <p>Use arrow keys or WASD to move. Visit different locations to explore your game development path!</p>
+    </div>
+    <button id="restart-button" onclick="restartGame()">Start Over</button>
+
+    <script>
+        const player = {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+            speed: 5,
+            baseSpeed: 5,
+            maxSpeed: 10,
+            acceleration: 0.5
+        };
+
+        const locations = [
+            { id: 'engine', x: window.innerWidth * 0.15, y: window.innerHeight * 0.2, icon: '🎮', title: 'Game Engine' },
+            { id: 'concept', x: window.innerWidth * 0.85, y: window.innerHeight * 0.2, icon: '💡', title: 'Game Concept' },
+            { id: 'learn', x: window.innerWidth * 0.5, y: window.innerHeight * 0.8, icon: '📚', title: 'Learning' }
+        ];
+
+        const gameStates = {
+            engine: {
+                text: "Choosing a game engine is an important decision. What's your priority?",
+                choices: [
+                    {text: "Beginner-friendly with lots of tutorials", action: "showResult('unity')"},
+                    {text: "Free and open-source", action: "showResult('godot')"},
+                    {text: "Professional-grade features", action: "showResult('unreal')"}
+                ]
+            },
+            concept: {
+                text: "Great choice! A solid concept is crucial. What type of game interests you?",
+                choices: [
+                    {text: "Simple 2D platformer", action: "showResult('platformer')"},
+                    {text: "Puzzle game", action: "showResult('puzzle')"},
+                    {text: "Story-driven adventure", action: "showResult('adventure')"}
+                ]
+            },
+            learn: {
+                text: "Learning to code is a great foundation. Where would you like to start?",
+                choices: [
+                    {text: "Basic programming concepts", action: "showResult('basics')"},
+                    {text: "Game-specific programming", action: "showResult('gamedev')"},
+                    {text: "Visual scripting", action: "showResult('visual')"}
+                ]
+            }
+        };
+
+        function initGame() {
+            // Create location points
+            locations.forEach(loc => {
+                const point = document.createElement('div');
+                point.className = 'location-point';
+                point.style.left = loc.x + 'px';
+                point.style.top = loc.y + 'px';
+                point.innerHTML = loc.icon;
+                point.title = loc.title;
+                point.setAttribute('data-id', loc.id);
+                document.getElementById('game-container').appendChild(point);
+            });
+
+            // Set initial player position
+            updatePlayerPosition();
+            
+            // Add keyboard controls
+            window.addEventListener('keydown', handleMovement);
+            window.addEventListener('keyup', () => {
+                // Reset speed when key is released
+                player.speed = player.baseSpeed;
+            });
+        }
+
+        function handleMovement(e) {
+            const key = e.key.toLowerCase();
+            
+            // Increase speed while key is held
+            player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
+            
+            if (key === 'w' || key === 'arrowup') player.y -= player.speed;
+            if (key === 's' || key === 'arrowdown') player.y += player.speed;
+            if (key === 'a' || key === 'arrowleft') player.x -= player.speed;
+            if (key === 'd' || key === 'arrowright') player.x += player.speed;
+
+            // Keep player within bounds
+            player.x = Math.max(16, Math.min(window.innerWidth - 16, player.x));
+            player.y = Math.max(16, Math.min(window.innerHeight - 16, player.y));
+
+            updatePlayerPosition();
+            checkLocationCollisions();
+        }
+
+        function updatePlayerPosition() {
+            const playerElement = document.getElementById('player');
+            playerElement.style.left = (player.x - 16) + 'px';
+            playerElement.style.top = (player.y - 16) + 'px';
+        }
+
+        function checkLocationCollisions() {
+            locations.forEach(loc => {
+                const distance = Math.hypot(player.x - loc.x, player.y - loc.y);
+                if (distance < 40) {
+                    makeChoice(loc.id);
+                }
+            });
+        }
+
+        function makeChoice(choice) {
+            const state = gameStates[choice];
+            const infoPanel = document.getElementById('info-panel');
+            
+            infoPanel.innerHTML = `
+                <h3>${locations.find(l => l.id === choice).title}</h3>
+                <p>${state.text}</p>
+                <div class="choices">
+                    ${state.choices.map(c => 
+                        `<button class="choice-button" onclick="${c.action}">${c.text}</button>`
+                    ).join('')}
+                </div>
+            `;
+        }
+
+        function showResult(choice) {
+            const gameState = document.getElementById('game-state');
+            const choicesDiv = document.getElementById('choices');
+            let message = '';
+
+            switch(choice) {
+                // Engine choices
+                case 'unity':
+                    message = `Unity is an excellent choice for beginners! Here's your roadmap:<br><br>
+                    1. Download Unity Hub and create a free account<br>
+                    2. Complete Unity's "Create with Code" course<br>
+                    3. Join Unity forums and Discord communities<br>
+                    4. Start with a small game project`;
+                    break;
+                case 'godot':
+                    message = `Godot is perfect for those who value open-source software!<br><br>
+                    1. Download the Godot engine<br>
+                    2. Follow the official step-by-step tutorial<br>
+                    3. Choose between GDScript (easier) or C# (more powerful)<br>
+                    4. Join the Godot community`;
+                    break;
+                case 'unreal':
+                    message = `Unreal Engine is powerful and professional!<br><br>
+                    1. Install the Epic Games launcher<br>
+                    2. Learn Blueprint visual scripting<br>
+                    3. Follow official tutorials<br>
+                    4. Start with template projects`;
+                    break;
+
+                // Concept choices
+                case 'platformer':
+                    message = `A 2D platformer is a great first project!<br><br>
+                    1. Design your main character<br>
+                    2. Create basic movement mechanics<br>
+                    3. Design a few simple levels<br>
+                    4. Add basic obstacles and collectibles`;
+                    break;
+                case 'puzzle':
+                    message = `Puzzle games are excellent for learning!<br><br>
+                    1. Define your core puzzle mechanic<br>
+                    2. Create progressively harder levels<br>
+                    3. Add visual feedback<br>
+                    4. Test with friends for difficulty balance`;
+                    break;
+                case 'adventure':
+                    message = `Story-driven games are engaging to create!<br><br>
+                    1. Write a basic story outline<br>
+                    2. Create character dialogs<br>
+                    3. Design your first scene<br>
+                    4. Implement basic interactions<br>
+                    <br>
+                    AN IDEA FOR YOU:<br><br>
+                    You're sitting at your desk, staring at your computer screen. The clock shows 2 AM, 
+                    and you've just finished another tutorial. Suddenly, you have an idea that won't let go - 
+                    a game about a young developer's quest to create their first masterpiece.<br><br>
+                    Your story will follow Alex, a passionate programmer who discovers an ancient arcade 
+                    machine that teaches game development through magical challenges. Each level represents 
+                    a different aspect of game creation:<br><br>
+                    • Level 1: "The Pixel Artist's Canvas" - Where Alex learns about game graphics<br>
+                    • Level 2: "The Sound of Code" - Creating game music and sound effects<br>
+                    • Level 3: "The Bug Hunter's Maze" - Debugging challenges and problem-solving<br>
+                    • Level 4: "The Final Compilation" - Bringing everything together<br><br>
+                    This meta-narrative will resonate with your players because it mirrors their own 
+                    journey into game development.`;
+                    break;
+
+                // Learning choices
+                case 'basics':
+                    message = `Learning programming basics is crucial!<br><br>
+                    1. Start with variables and data types<br>
+                    2. Learn about functions and loops<br>
+                    3. Study if-statements and logic<br>
+                    4. Practice with small coding exercises`;
+                    break;
+                case 'gamedev':
+                    message = `Game-specific programming is exciting!<br><br>
+                    1. Learn about game loops<br>
+                    2. Study collision detection<br>
+                    3. Understand sprite animation<br>
+                    4. Practice with simple game mechanics`;
+                    break;
+                case 'visual':
+                    message = `Visual scripting is a great way to start!<br><br>
+                    1. Choose an engine with visual scripting<br>
+                    2. Learn basic logic flows<br>
+                    3. Create simple game behaviors<br>
+                    4. Build a small game prototype`;
+                    break;
+            }
+
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.innerHTML = `
+                <h3>Results</h3>
+                <p>${message}</p>
+                <p>Remember: Start small, learn continuously, and don't be afraid to make mistakes!</p>
+            `;
+            document.getElementById('restart-button').style.display = 'block';
+        }
+
+        function restartGame() {
+            player.x = window.innerWidth / 2;
+            player.y = window.innerHeight / 2;
+            player.speed = player.baseSpeed;
+            updatePlayerPosition();
+            document.getElementById('info-panel').innerHTML = `
+                <h2>Game Development Journey</h2>
+                <p>Use arrow keys or WASD to move. Visit different locations to explore your game development path!</p>
+            `;
+            document.getElementById('restart-button').style.display = 'none';
+        }
+
+        // Initialize the game when the page loads
+        window.addEventListener('load', initGame);
+    </script>
+</body>
+</html>
